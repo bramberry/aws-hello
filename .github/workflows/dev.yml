@@ -1,0 +1,98 @@
+name: Build Java Maven
+
+env:
+  EB_APPLICATION_NAME       : "spring-social"
+  EB_ENVIRONMENT_NAME       : "SpringSocial-env"
+  EB_PACKAGE_S3_BUCKET_NAME : "spring-social-versions"
+  DEPLOY_PACKAGE_NAME       : "spring-social_${{ github.sha }}.zip"
+  AWS_REGION_NAME           : "us-east-1"
+  AWS_ACCOUNT_ID            : "121083057015"
+
+on: [push, pull_request]
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [ 8 ]
+    name: Java ${{ matrix.java }} compile
+    steps:
+      - uses: actions/checkout@master
+      - name: Setup java
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ matrix.java }}
+      - run: mvn -f pom.xml clean compile
+  build:
+    runs-on: ubuntu-latest
+    needs: compile
+    name: Build Maven project
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/cache@v1
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+      - name: Set up JDK 11
+        uses: actions/setup-java@v1
+        with:
+          java-version: 11
+      - name: Build and test project
+        run: mvn -f pom.xml clean verify
+      - name: Upload Maven build artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: artifact
+          path: target/spring-social-0.0.1-SNAPSHOT.jar
+  package:
+    runs-on: ubuntu-latest
+    needs: build
+    name: Build Docker container and deploy to Kubernetes
+    steps:
+      - uses: actions/checkout@v1
+      - name: Download Maven build artifact
+        uses: actions/download-artifact@v1
+        with:
+          name: artifact
+      - name: Build Docker container
+        run: |
+          mkdir -p target
+          mv artifact/spring-social-0.0.1-SNAPSHOT.jar target
+          docker build -t by.bramberry.pr/spring-social ./
+      - uses: kciter/aws-ecr-action@v1
+          with:
+            access_key_id: ${{ secrets.AWS_USER_ACCESS_KEY }}
+            secret_access_key: ${{ secrets.AWS_USER_ACCESS_KEY_SECRET }}
+            account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+            repo: 121083057015.dkr.ecr.us-east-1.amazonaws.com/dev
+            region: ${{ env.AWS_REGION_NAME }}
+            tags: latest,${{ github.sha }}
+
+  deploy:
+    needs: package
+    runs-on: ubuntu-latest
+    name: Deploy on AWS
+    steps:
+      - name: Configure my AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id    :  ${{ secrets.AWS_USER_ACCESS_KEY }}
+          aws-secret-access-key:  ${{ secrets.AWS_USER_ACCESS_KEY_SECRET }}
+          aws-region           :  ${{ env.AWS_REGION_NAME }}
+
+      - name: Create new ElasticBeanstalk Application Version
+        run : |
+          aws elasticbeanstalk create-application-version \
+          --application-name ${{ env.EB_APPLICATION_NAME }} \
+          --source-bundle S3Bucket="${{ env.EB_PACKAGE_S3_BUCKET_NAME }}",S3Key="${{ env.DEPLOY_PACKAGE_NAME }}" \
+          --version-label "Ver-${{ github.sha }}" \
+          --description "CoimmitSHA-${{ github.sha }}"
+
+      - name: Deploy new ElasticBeanstalk Application Version
+        run : aws elasticbeanstalk update-environment --environment-name ${{ env.EB_ENVIRONMENT_NAME }} --version-label "Ver-${{ github.sha }}"
+
+      - name: Print Happy Message for CD finish
+        run : echo "CD Pipeline part Finished successfully!"
