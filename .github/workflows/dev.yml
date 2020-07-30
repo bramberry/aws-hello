@@ -86,7 +86,7 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: .aws/task-definition.json
-          container-name: aws-hello
+          container-name: AWS-Hello
           image: ${{ env.TASK_DEFINITION_IMAGE_NAME }}
 
       - name: Deploy Amazon ECS task definition
