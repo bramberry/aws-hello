@@ -7,6 +7,7 @@ env:
   DEPLOY_PACKAGE_NAME       : "spring-social_${{ github.sha }}.zip"
   AWS_REGION_NAME           : "us-east-1"
   AWS_ACCOUNT_ID            : "121083057015"
+  JAR_NAME                  : "demo-0.0.1-SNAPSHOT.jar"
 
 on: [push, pull_request]
 
@@ -46,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: artifact
-          path: target/demo-0.0.1-SNAPSHOT.jar
+          path: target/{{ JAR_NAME }}
   package:
     runs-on: ubuntu-latest
     needs: build
@@ -60,7 +61,7 @@ jobs:
       - name: Build Docker container
         run: |
           mkdir -p target
-          mv artifact/spring-social-0.0.1-SNAPSHOT.jar target
+          mv artifact/{{ JAR_NAME }} target
           docker build -t 121083057015.dkr.ecr.us-east-1.amazonaws.com/dev ./
       - uses: kciter/aws-ecr-action@v1
         with:
