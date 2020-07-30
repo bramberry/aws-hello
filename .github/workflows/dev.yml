@@ -61,7 +61,7 @@ jobs:
         run: |
           mkdir -p target
           mv artifact/spring-social-0.0.1-SNAPSHOT.jar target
-          docker build -t by.bramberry.pr/spring-social ./
+          docker build -t 121083057015.dkr.ecr.us-east-1.amazonaws.com/dev ./
       - uses: kciter/aws-ecr-action@v1
         with:
           access_key_id: ${{ secrets.AWS_USER_ACCESS_KEY }}
