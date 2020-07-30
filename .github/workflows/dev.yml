@@ -1,13 +1,14 @@
 name: Build Java Maven
 
 env:
-  EB_APPLICATION_NAME       : "spring-social"
-  EB_ENVIRONMENT_NAME       : "SpringSocial-env"
-  EB_PACKAGE_S3_BUCKET_NAME : "spring-social-versions"
-  DEPLOY_PACKAGE_NAME       : "spring-social_${{ github.sha }}.zip"
-  AWS_REGION_NAME           : "us-east-1"
-  AWS_ACCOUNT_ID            : "121083057015"
-  JAR_NAME                  : "demo-0.0.1-SNAPSHOT.jar"
+  EB_APPLICATION_NAME: "spring-social"
+  EB_ENVIRONMENT_NAME: "SpringSocial-env"
+  EB_PACKAGE_S3_BUCKET_NAME: "spring-social-versions"
+  DEPLOY_PACKAGE_NAME: "spring-social_${{ github.sha }}.zip"
+  AWS_REGION_NAME: "us-east-1"
+  AWS_ACCOUNT_ID: "121083057015"
+  JAR_NAME: "demo-0.0.1-SNAPSHOT.jar"
+  TASK_DEFINITION_IMAGE_NAME : "121083057015.dkr.ecr.us-east-1.amazonaws.com/dev:${{ github.sha }}"
 
 on: [push, pull_request]
 
@@ -58,11 +59,6 @@ jobs:
         uses: actions/download-artifact@v1
         with:
           name: target
-#      - name: Build Docker container
-#        run: |
-#          mkdir -p target
-#          mv artifact/${{ env.JAR_NAME }} target
-#          docker build -t 121083057015.dkr.ecr.us-east-1.amazonaws.com/dev ./
       - uses: kciter/aws-ecr-action@v1
         with:
           access_key_id: ${{ secrets.AWS_USER_ACCESS_KEY }}
@@ -72,28 +68,30 @@ jobs:
           region: ${{ env.AWS_REGION_NAME }}
           tags: latest,${{ github.sha }}
 
-#  deploy:
-#    needs: package
-#    runs-on: ubuntu-latest
-#    name: Deploy on AWS
-#    steps:
-#      - name: Configure my AWS Credentials
-#        uses: aws-actions/configure-aws-credentials@v1
-#        with:
-#          aws-access-key-id    :  ${{ secrets.AWS_USER_ACCESS_KEY }}
-#          aws-secret-access-key:  ${{ secrets.AWS_USER_ACCESS_KEY_SECRET }}
-#          aws-region           :  ${{ env.AWS_REGION_NAME }}
-#
-#      - name: Create new ElasticBeanstalk Application Version
-#        run : |
-#          aws elasticbeanstalk create-application-version \
-#          --application-name ${{ env.EB_APPLICATION_NAME }} \
-#          --source-bundle S3Bucket="${{ env.EB_PACKAGE_S3_BUCKET_NAME }}",S3Key="${{ env.DEPLOY_PACKAGE_NAME }}" \
-#          --version-label "Ver-${{ github.sha }}" \
-#          --description "CoimmitSHA-${{ github.sha }}"
-#
-#      - name: Deploy new ElasticBeanstalk Application Version
-#        run : aws elasticbeanstalk update-environment --environment-name ${{ env.EB_ENVIRONMENT_NAME }} --version-label "Ver-${{ github.sha }}"
-#
-#      - name: Print Happy Message for CD finish
-#        run : echo "CD Pipeline part Finished successfully!"
+  deploy:
+    needs: package
+    runs-on: ubuntu-latest
+    name: Deploy on AWS
+    steps:
+      - name: Configure AWS credentials
+          uses: aws-actions/configure-aws-credentials@v1
+          with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: ${{ env.AWS_REGION_NAME }}
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+          id: task-def
+          uses: aws-actions/amazon-ecs-render-task-definition@v1
+          with:
+            task-definition: .aws/task-definition.json
+            container-name: AWS-Hello
+            image: ${{ env.TASK_DEFINITION_IMAGE_NAME }}
+
+      - name: Deploy Amazon ECS task definition
+          uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+          with:
+            task-definition: ${{ steps.task-def.outputs.task-definition }}
+            service: Hello
+            cluster: MyTestUpdate
+            wait-for-service-stability: true
