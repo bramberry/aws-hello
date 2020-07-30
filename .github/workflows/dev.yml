@@ -46,7 +46,7 @@ jobs:
       - name: Upload Maven build artifact
         uses: actions/upload-artifact@v1
         with:
-          name: artifact
+          name: target
           path: target/${{ env.JAR_NAME }}
   package:
     runs-on: ubuntu-latest
@@ -54,10 +54,10 @@ jobs:
     name: Build Docker container and deploy to Kubernetes
     steps:
       - uses: actions/checkout@v1
-#      - name: Download Maven build artifact
-#        uses: actions/download-artifact@v1
-#        with:
-#          name: artifact
+      - name: Download Maven build artifact
+        uses: actions/download-artifact@v1
+        with:
+          name: target
 #      - name: Build Docker container
 #        run: |
 #          mkdir -p target
