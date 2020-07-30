@@ -54,21 +54,21 @@ jobs:
     name: Build Docker container and deploy to Kubernetes
     steps:
       - uses: actions/checkout@v1
-      - name: Download Maven build artifact
-        uses: actions/download-artifact@v1
-        with:
-          name: artifact
-      - name: Build Docker container
-        run: |
-          mkdir -p target
-          mv artifact/${{ env.JAR_NAME }} target
-          docker build -t 121083057015.dkr.ecr.us-east-1.amazonaws.com/dev ./
+#      - name: Download Maven build artifact
+#        uses: actions/download-artifact@v1
+#        with:
+#          name: artifact
+#      - name: Build Docker container
+#        run: |
+#          mkdir -p target
+#          mv artifact/${{ env.JAR_NAME }} target
+#          docker build -t 121083057015.dkr.ecr.us-east-1.amazonaws.com/dev ./
       - uses: kciter/aws-ecr-action@v1
         with:
           access_key_id: ${{ secrets.AWS_USER_ACCESS_KEY }}
           secret_access_key: ${{ secrets.AWS_USER_ACCESS_KEY_SECRET }}
           account_id: ${{ env.AWS_ACCOUNT_ID }}
-          repo: 121083057015.dkr.ecr.us-east-1.amazonaws.com/dev
+          repo: dev
           region: ${{ env.AWS_REGION_NAME }}
           tags: latest,${{ github.sha }}
 
